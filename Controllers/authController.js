@@ -7,20 +7,24 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const registerUser = async (req, res, next) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, address, phoneNumber } = req.body;
   if (
     !username ||
     !email ||
     !password ||
+    !address ||
+    !phoneNumber ||
     username === "" ||
     email === "" ||
-    password === ""
+    password === "" ||
+    address === "" ||
+    phoneNumber === ""
   ) {
     return next(errorHandler(400, "All the Fields are Required"));
   }
   const hashedPassword = bcryptjs.hashSync(password, 10);
 
-  const newUser = new User({ username, email, password: hashedPassword });
+  const newUser = new User({ username, email, password: hashedPassword, address:address, phoneNumber:phoneNumber });
   try {
     await newUser.save();
     res
@@ -42,7 +46,10 @@ export const loginUser = async (req, res, next) => {
     if (!userDetail || !userPassword) {
       return next(errorHandler(400, "Invalid Credentials"));
     }
-    const token = jwt.sign({ id: userDetail._id, isAdmin:userDetail.isAdmin }, process.env.JWT_SECRET_KEY);
+    const token = jwt.sign(
+      { id: userDetail._id, isAdmin: userDetail.isAdmin },
+      process.env.JWT_SECRET_KEY
+    );
     const { password: passkey, ...rest } = userDetail._doc;
     res
       .status(200)
@@ -57,11 +64,14 @@ export const google = async (req, res, next) => {
   try {
     const user = await User.findOne({ email });
     if (user) {
-      const token = jwt.sign({ id: user._id,isAdmin:user.isAdmin }, process.env.JWT_SECRET_KEY);
+      const token = jwt.sign(
+        { id: user._id, isAdmin: user.isAdmin },
+        process.env.JWT_SECRET_KEY
+      );
       const { password: passkey, ...rest } = user._doc;
       res
         .status(200)
-        .json({ message: "User Logged In Successfully", rest,  token });
+        .json({ message: "User Logged In Successfully", rest, token });
     } else {
       const generatePassword =
         Math.random().toString(36).slice(-8) +
@@ -78,7 +88,10 @@ export const google = async (req, res, next) => {
 
       await newUser.save();
 
-      const token = jwt.sign({ id: newUser._id, isAdmin:newUser.isAdmin }, process.env.JWT_SECRET_KEY);
+      const token = jwt.sign(
+        { id: newUser._id, isAdmin: newUser.isAdmin },
+        process.env.JWT_SECRET_KEY
+      );
       const { password: passkey, ...rest } = newUser._doc;
       res
         .status(200)

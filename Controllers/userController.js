@@ -4,6 +4,7 @@ import bcryptjs from "bcryptjs";
 
 export const updateUser = async (req, res, next) => {
     const {id} = req.params
+    console.log(req.body)
   if (req.user.id != id ) {
     return next(errorHandler(401, "Unauthorized access to update the user"));
   }
@@ -38,6 +39,8 @@ export const updateUser = async (req, res, next) => {
           email: req.body.email,
           password: req.body.password,
           profilePicture: req.body.profilePicture,
+          address: req.body.address,
+          phoneNumber: req.body.phoneNumber
         },
       },
       {

@@ -6,20 +6,31 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      trim:true
     },
     email: {
       type: String,
       required: true,
       unique: true,
+      trim:true
     },
     password: {
       type: String,
       required: true,
+      trim:true
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
     },
     profilePicture: {
       type: String,
       default:
-        "https://www.shutterstock.com/image-vector/user-icon-vector-trendy-flat-600nw-1720665448.jpg",
+        "https://res.cloudinary.com/dhke5mt23/image/upload/v1735907122/avatar_vdcl9x.jpg",
     },
     isAdmin: {
       type: Boolean,
