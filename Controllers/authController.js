@@ -3,6 +3,7 @@ import { errorHandler } from "../Utils/Error.js";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import { sendLink } from "../Services/NodeMailer.js";
 
 dotenv.config();
 
@@ -99,5 +100,45 @@ export const google = async (req, res, next) => {
     }
   } catch (error) {
     next(error);
+  }
+};
+
+//Function to send email to reset password
+export const forgotPassword = async (req, res, next ) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      return next(errorHandler(401,"User not found"));
+    }    
+    const userId = user._id;
+    const token = jwt.sign({ _id: userId }, process.env.JWT_SECRET_KEY, {
+      expiresIn: "1d",
+    });
+    await sendLink(email, token, userId);
+    res.status(200).json({ message: "Mail Sent Successfully" });
+  } catch (error) {
+    next(error)
+  }
+};
+
+//Function to reset password
+export const resetPassword = async (req, res, next ) => {
+  try {
+    const { id } = req.params;
+    const { newPassword, confirmPassword } = req.body;
+    if (newPassword !== confirmPassword) {
+      return(next(errorHandler(401,"Password does not match")))
+    }
+    const user = await User.findById(id);
+    if (!user) {
+      return (next(errorHandler(401,"User not found")))
+    }
+    const hashPassword = await bcryptjs.hashSync(newPassword, 10);
+    user.password = hashPassword;
+    await user.save();
+    res.status(200).json({ message: "Password Reset Successfully" });
+  } catch (error) {
+    next(error)
   }
 };

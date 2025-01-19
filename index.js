@@ -19,6 +19,18 @@ app.use(
 
 app.use(express.json());
 
+connectDB();
+
+
+app.get("/", (req, res) => {
+  res.send("Welcome to the API");
+});
+
+//API routes
+app.use('/api/auth',authRoute)
+app.use('/api/user',userRoute)
+app.use('/api/admin',adminRoute)
+
 //Error Handler - middleware
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
@@ -30,16 +42,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-connectDB();
-
-app.get("/", (req, res) => {
-  res.send("Welcome to the API");
-});
-
-//API routes
-app.use('/api/auth',authRoute)
-app.use('/api/user',userRoute)
-app.use('/api/admin',adminRoute)
 
 app.listen(process.env.PORT, () => {
   console.log("Server is running");
