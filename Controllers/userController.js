@@ -3,6 +3,7 @@ import { errorHandler } from "../Utils/Error.js";
 import bcryptjs from "bcryptjs";
 import Products from "../Models/productsModel.js";
 import Cart from '../Models/cartModel.js';
+import Stripe from 'stripe';
 
 export const updateUser = async (req, res, next) => {
   const { id } = req.params;
@@ -141,6 +142,30 @@ export const addToCart = async (req, res, next) => {
   }
 };
 
+export const removeFromCart = async (req, res, next) => {
+  try {
+    const {id} = req.params
+    const { productId } = req.body;
+
+    const cart = await Cart.findOne({ userId:id });
+
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+
+    cart.products = cart.products.filter(
+      (item) => item.productId.toString() !== productId
+    );
+    await cart.save();
+
+    return res.status(200).json({ message: "Product removed from cart" });
+  } catch (error) {
+    next(errorHandler(500, "Failed to remove product from cart"));
+  }
+};
+
+
+
 export const getCartCount = async (req, res, next) => {
   try {
     const {id} = req.params
@@ -216,25 +241,32 @@ export const updateCartQuantity = async (req, res, next) => {
   }
 };
 
-export const removeFromCart = async (req, res, next) => {
-  try {
-    const {id} = req.params
-    const { productId } = req.body;
+export const checkoutSession = async(req,res,next)=>{
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+try {
+  const {products} = req.body
 
-    const cart = await Cart.findOne({ userId:id });
-
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
-
-    cart.products = cart.products.filter(
-      (item) => item.productId.toString() !== productId
-    );
-    await cart.save();
-
-    return res.status(200).json({ message: "Product removed from cart" });
-  } catch (error) {
-    next(errorHandler(500, "Failed to remove product from cart"));
-  }
-};
+  const lineItems = products.map((product)=>({
+    price_data:{
+      currency:'usd',
+      product_data:{
+        name:product.name,
+        images:product.picture
+      },
+      unit_amount:Math.round(product.price * 100)
+    },
+    quantity:product.quantity
+  }))
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types:['card'],
+    line_items:lineItems,
+    mode:'payment',
+    success_url:'http://localhost:5173/paymentsuccess',
+    cancel_url: 'http://localhost:5173/paymentfailure'
+  })
+  res.json({id:session.id})
+} catch (error) {
+  next(errorHandler(500,'Payment Failed'))
+}
+}
 
