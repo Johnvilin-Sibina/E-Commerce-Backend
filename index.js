@@ -17,7 +17,25 @@ app.use(
   })
 );
 
-app.use(express.json());
+// Handle raw body for Stripe webhook
+app.post(
+  "/api/user/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  (req, res, next) => {
+    userRoute(req, res, next); // Pass control to userRouter
+  }
+);
+
+// Apply JSON middleware for all other routes
+app.use((req, res, next) => {
+  if (req.originalUrl === "/api/user/stripe/webhook") {
+    next(); // Skip global middleware for Stripe webhook
+  } else {
+    express.json()(req, res, next);
+  }
+});
+
+// app.use(express.json());
 
 connectDB();
 

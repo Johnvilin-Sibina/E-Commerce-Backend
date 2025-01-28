@@ -2,8 +2,10 @@ import User from "../Models/userModel.js";
 import { errorHandler } from "../Utils/Error.js";
 import bcryptjs from "bcryptjs";
 import Products from "../Models/productsModel.js";
-import Cart from '../Models/cartModel.js';
-import Stripe from 'stripe';
+import Cart from "../Models/cartModel.js";
+import Stripe from "stripe";
+import Orders from "../Models/ordersModel.js";
+import mongoose from "mongoose";
 
 export const updateUser = async (req, res, next) => {
   const { id } = req.params;
@@ -95,23 +97,22 @@ export const getProducts = async (req, res, next) => {
       next(errorHandler(400, "Failed to fetch products"));
     }
     res
-        .status(200)
-        .json({ message: "Products fetched successfully", products });
+      .status(200)
+      .json({ message: "Products fetched successfully", products });
   } catch (error) {
     return next(error);
   }
 };
 
-
 export const addToCart = async (req, res, next) => {
   try {
-    const { productId, userId } = req.body; 
+    const { productId, userId } = req.body;
 
     if (!productId) {
       return next(errorHandler(400, "Product ID is required"));
     }
 
-    const cart = await Cart.findOne({userId});
+    const cart = await Cart.findOne({ userId });
 
     if (cart) {
       // Check if the product already exists in the cart
@@ -124,7 +125,7 @@ export const addToCart = async (req, res, next) => {
         cart.products[productIndex].quantity += 1;
       } else {
         // If product does not exist, add it
-        cart.products.push({productId, quantity: 1 });
+        cart.products.push({ productId, quantity: 1 });
       }
 
       await cart.save();
@@ -136,7 +137,9 @@ export const addToCart = async (req, res, next) => {
       });
     }
 
-    return res.status(200).json({ message: "Product added to cart successfully" });
+    return res
+      .status(200)
+      .json({ message: "Product added to cart successfully" });
   } catch (error) {
     next(errorHandler(500, "Something went wrong"));
   }
@@ -144,10 +147,10 @@ export const addToCart = async (req, res, next) => {
 
 export const removeFromCart = async (req, res, next) => {
   try {
-    const {id} = req.params
+    const { id } = req.params;
     const { productId } = req.body;
 
-    const cart = await Cart.findOne({ userId:id });
+    const cart = await Cart.findOne({ userId: id });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -164,14 +167,14 @@ export const removeFromCart = async (req, res, next) => {
   }
 };
 
-
-
 export const getCartCount = async (req, res, next) => {
   try {
-    const {id} = req.params
-    const cart = await Cart.findOne({ userId:id });
+    const { id } = req.params;
+    const cart = await Cart.findOne({ userId: id });
 
-    const itemCount = cart ? cart.products.reduce((count, item) => count + item.quantity, 0) : 0;
+    const itemCount = cart
+      ? cart.products.reduce((count, item) => count + item.quantity, 0)
+      : 0;
 
     return res.status(200).json({ itemCount });
   } catch (error) {
@@ -182,7 +185,9 @@ export const getCartCount = async (req, res, next) => {
 export const getCartDetails = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const cart = await Cart.findOne({ userId: id }).populate("products.productId");
+    const cart = await Cart.findOne({ userId: id }).populate(
+      "products.productId"
+    );
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -206,17 +211,16 @@ export const getCartDetails = async (req, res, next) => {
   }
 };
 
-
 export const updateCartQuantity = async (req, res, next) => {
   try {
-    const {id} = req.params
+    const { id } = req.params;
     const { productId, quantity } = req.body;
 
     if (!quantity || quantity < 1) {
       return next(errorHandler(400, "Quantity must be at least 1"));
     }
 
-    const cart = await Cart.findOne({ userId:id });
+    const cart = await Cart.findOne({ userId: id });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -241,32 +245,91 @@ export const updateCartQuantity = async (req, res, next) => {
   }
 };
 
-export const checkoutSession = async(req,res,next)=>{
+export const checkoutSession = async (req, res, next) => {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-try {
-  const {products} = req.body
+  try {
+    const { products, user } = req.body;
 
-  const lineItems = products.map((product)=>({
-    price_data:{
-      currency:'usd',
-      product_data:{
-        name:product.name,
-        images:product.picture
+    const lineItems = products.map((product) => ({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: product.name,
+          images: [product.picture[0]],
+          metadata: {
+            product_id: product.id.toString(),
+          },
+        },
+        unit_amount: Math.round(product.price * 100),
       },
-      unit_amount:Math.round(product.price * 100)
-    },
-    quantity:product.quantity
-  }))
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types:['card'],
-    line_items:lineItems,
-    mode:'payment',
-    success_url:'http://localhost:5173/paymentsuccess',
-    cancel_url: 'http://localhost:5173/paymentfailure'
-  })
-  res.json({id:session.id})
-} catch (error) {
-  next(errorHandler(500,'Payment Failed'))
-}
-}
+      quantity: product.quantity,
+    }));
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: lineItems,
+      mode: "payment",
+      success_url: "http://localhost:5173/paymentsuccess",
+      cancel_url: "http://localhost:5173/paymentfailure",
+      client_reference_id: user._id,
+      expand: ["line_items"],
+    });
+    res.status(200).json({ id: session.id });
+  } catch (error) {
+    next(errorHandler(500, "Payment Failed"));
+  }
+};
 
+
+export const stripeWebhook = async (req, res, next) => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const signature = req.headers["stripe-signature"];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, signature, endpointSecret);
+  } catch (error) {
+    return next(errorHandler(400,error.message));
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+
+    try {
+      const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+
+      const enrichedProducts = await Promise.all(
+        lineItems.data.map(async (item) => {
+          const product = await stripe.products.retrieve(item.price.product);
+          return {
+            productId: product.metadata.product_id,
+            quantity: item.quantity,
+            price: item.price.unit_amount / 100,
+          };
+        })
+      );
+
+      const userId = session.client_reference_id;
+      const customer = await User.findById(userId);
+
+      if (!customer) {
+        return next(errorHandler(404,'User not found'));
+      }
+
+      const orderDetails = new Orders({
+        userId,
+        products: enrichedProducts,
+        totalAmount: session.amount_total / 100,
+        paymentStatus: "Paid",
+        status: "Pending",
+      });
+
+      await orderDetails.save(); 
+
+      res.status(200).json({ message: "Order placed successfully" });
+    } catch (error) {
+      next(errorHandler(500, "Error processing the order"));
+    }
+  }
+};
