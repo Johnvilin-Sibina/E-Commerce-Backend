@@ -19,12 +19,12 @@ export const createCategory = async (req, res, next) => {
       .status(200)
       .json({ message: "Category created successfully", newCategory });
   } catch (error) {
-    next(error);
+    return next(errorHandler(error));
   }
 };
 
 export const createProduct = async (req, res, next) => {
-  const { productName, description, price,  category, stock, images } = req.body;
+  const { productName, description, price, category, stock, images } = req.body;
   if (
     !productName ||
     !description ||
@@ -35,22 +35,22 @@ export const createProduct = async (req, res, next) => {
   ) {
     return next(errorHandler(400, "All the fields are required"));
   }
-  const productCategory = await Category.findOne({categoryName:category})
-  if(!productCategory){
-    return next(errorHandler(404,'Invalid Category'))
+  const productCategory = await Category.findOne({ categoryName: category });
+  if (!productCategory) {
+    return next(errorHandler(404, "Invalid Category"));
   }
   const newProduct = new Products({
     productName,
     description,
     price,
     stock,
-    category:productCategory._id,
+    category: productCategory._id,
     images,
   });
   try {
     await newProduct.save();
     res.status(200).json({ message: "Product added successfully", newProduct });
   } catch (error) {
-    next(error);
+    return next(errorHandler(error));
   }
 };

@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./Database/config.js";
-import authRoute from './Routers/authRouter.js';
-import userRoute from './Routers/userRouter.js';
-import adminRoute from './Routers/adminRouter.js';
+import authRoute from "./Routers/authRouter.js";
+import userRoute from "./Routers/userRouter.js";
+import adminRoute from "./Routers/adminRouter.js";
 
 dotenv.config();
 
@@ -35,19 +35,16 @@ app.use((req, res, next) => {
   }
 });
 
-// app.use(express.json());
-
 connectDB();
-
 
 app.get("/", (req, res) => {
   res.send("Welcome to the API");
 });
 
 //API routes
-app.use('/api/auth',authRoute)
-app.use('/api/user',userRoute)
-app.use('/api/admin',adminRoute)
+app.use("/api/auth", authRoute);
+app.use("/api/user", userRoute);
+app.use("/api/admin", adminRoute);
 
 //Error Handler - middleware
 app.use((err, req, res, next) => {
@@ -59,7 +56,6 @@ app.use((err, req, res, next) => {
     message,
   });
 });
-
 
 app.listen(process.env.PORT, () => {
   console.log("Server is running");

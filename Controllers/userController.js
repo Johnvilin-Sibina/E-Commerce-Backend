@@ -5,11 +5,9 @@ import Products from "../Models/productsModel.js";
 import Cart from "../Models/cartModel.js";
 import Stripe from "stripe";
 import Orders from "../Models/ordersModel.js";
-import mongoose from "mongoose";
 
 export const updateUser = async (req, res, next) => {
   const { id } = req.params;
-  console.log(req.body);
   if (req.user.id != id) {
     return next(errorHandler(401, "Unauthorized access to update the user"));
   }
@@ -57,7 +55,7 @@ export const updateUser = async (req, res, next) => {
       .status(200)
       .json({ message: "User Profile Updated Successfully", rest });
   } catch (error) {
-    next(error);
+    return next(errorHandler(500, error));
   }
 };
 
@@ -71,22 +69,20 @@ export const deleteUser = async (req, res, next) => {
     await User.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: "User account deleted successfully." });
   } catch (error) {
-    next(error);
+    return next(errorHandler(500, error));
   }
 };
 
 export const getUserById = async (req, res, next) => {
   const { id } = req.params;
-  console.log(id);
   try {
     const user = await User.findById(id);
     if (!user) {
       next(errorHandler(404, "User not found."));
     }
     res.status(200).json({ message: "Fetched user successfully.", user });
-    console.log(user);
   } catch (error) {
-    next(error);
+    return next(errorHandler(error));
   }
 };
 
@@ -100,7 +96,7 @@ export const getProducts = async (req, res, next) => {
       .status(200)
       .json({ message: "Products fetched successfully", products });
   } catch (error) {
-    return next(error);
+    return next(errorHandler(500, error));
   }
 };
 
@@ -141,7 +137,7 @@ export const addToCart = async (req, res, next) => {
       .status(200)
       .json({ message: "Product added to cart successfully" });
   } catch (error) {
-    next(errorHandler(500, "Something went wrong"));
+    return next(errorHandler(500, "Something went wrong"));
   }
 };
 
@@ -153,32 +149,24 @@ export const removeFromCart = async (req, res, next) => {
     const cart = await Cart.findOne({ userId: id });
 
     if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
+      return res.status(401).json({ message: "Cart not found" });
     }
 
     cart.products = cart.products.filter(
       (item) => item.productId.toString() !== productId
     );
     await cart.save();
+    if (cart.products.length === 0) {
+      try {
+        await Cart.deleteOne(cart);
+      } catch (error) {
+        next(errorHandler(500, `Unable to delete cart : ${error.message}`));
+      }
+    }
 
     return res.status(200).json({ message: "Product removed from cart" });
   } catch (error) {
-    next(errorHandler(500, "Failed to remove product from cart"));
-  }
-};
-
-export const getCartCount = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const cart = await Cart.findOne({ userId: id });
-
-    const itemCount = cart
-      ? cart.products.reduce((count, item) => count + item.quantity, 0)
-      : 0;
-
-    return res.status(200).json({ itemCount });
-  } catch (error) {
-    next(errorHandler(500, "Failed to fetch cart count"));
+    return next(errorHandler(500, "Failed to remove product from cart"));
   }
 };
 
@@ -189,8 +177,8 @@ export const getCartDetails = async (req, res, next) => {
       "products.productId"
     );
 
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
+    if (!cart || cart.products.length === 0) {
+      return res.status(200).json({ cartItems: [], subtotal: 0 });
     }
 
     const cartItems = cart.products.map((item) => ({
@@ -207,7 +195,7 @@ export const getCartDetails = async (req, res, next) => {
 
     res.status(200).json({ cartItems, subtotal });
   } catch (error) {
-    next(errorHandler(500, "Failed to fetch cart details"));
+    return next(errorHandler(500, "Failed to fetch cart details"));
   }
 };
 
@@ -241,7 +229,7 @@ export const updateCartQuantity = async (req, res, next) => {
       .status(200)
       .json({ message: "Cart quantity updated successfully" });
   } catch (error) {
-    next(errorHandler(500, "Failed to update cart quantity"));
+    return next(errorHandler(500, "Failed to update cart quantity"));
   }
 };
 
@@ -254,8 +242,15 @@ export const checkoutSession = async (req, res, next) => {
       price_data: {
         currency: "usd",
         product_data: {
-          name: product.name,
-          images: [product.picture[0]],
+          name:
+            product.productName ||
+            product.name ||
+            product.productId.productName,
+          images: [
+            product.images?.[0] ||
+              product.picture?.[0] ||
+              product.productId.images?.[0],
+          ],
           metadata: {
             product_id: product.id.toString(),
           },
@@ -264,6 +259,7 @@ export const checkoutSession = async (req, res, next) => {
       },
       quantity: product.quantity,
     }));
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: lineItems,
@@ -273,12 +269,12 @@ export const checkoutSession = async (req, res, next) => {
       client_reference_id: user._id,
       expand: ["line_items"],
     });
+
     res.status(200).json({ id: session.id });
   } catch (error) {
-    next(errorHandler(500, "Payment Failed"));
+    return next(errorHandler(500, "Payment Failed"));
   }
 };
-
 
 export const stripeWebhook = async (req, res, next) => {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -290,14 +286,16 @@ export const stripeWebhook = async (req, res, next) => {
   try {
     event = stripe.webhooks.constructEvent(req.body, signature, endpointSecret);
   } catch (error) {
-    return next(errorHandler(400,error.message));
+    return next(errorHandler(400, error.message));
   }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
 
     try {
-      const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+      const lineItems = await stripe.checkout.sessions.listLineItems(
+        session.id
+      );
 
       const enrichedProducts = await Promise.all(
         lineItems.data.map(async (item) => {
@@ -314,7 +312,7 @@ export const stripeWebhook = async (req, res, next) => {
       const customer = await User.findById(userId);
 
       if (!customer) {
-        return next(errorHandler(404,'User not found'));
+        return next(errorHandler(404, "User not found"));
       }
 
       const orderDetails = new Orders({
@@ -325,11 +323,39 @@ export const stripeWebhook = async (req, res, next) => {
         status: "Pending",
       });
 
-      await orderDetails.save(); 
+      await orderDetails.save();
+      try {
+        await Cart.findOneAndDelete({ userId });
+      } catch (error) {
+        next(errorHandler(500, "Error deleting cart items"));
 
-      res.status(200).json({ message: "Order placed successfully" });
+        res.status(200).json({ message: "Order placed successfully" });
+      }
     } catch (error) {
-      next(errorHandler(500, "Error processing the order"));
+      return next(errorHandler(500, "Error procescsing the order"));
     }
+  }
+};
+
+export const getOrderDetails = async (req, res, next) => {
+  const { id } = req.params;
+
+  if (!id) {
+    next(errorHandler(401, "User Id is missing"));
+  }
+  try {
+    const orderDetails = await Orders.find({ userId: id }).populate({
+      path: "products.productId",
+      select: "productName description images price",
+    });
+
+    if (!orderDetails) {
+      res.status(200).json({ message: "You have not placed orders yet" });
+    }
+    res
+      .status(200)
+      .json({ orderDetails, message: "Order details fetched successfully" });
+  } catch (error) {
+    return next(errorHandler(500, "Failed to fetch order details"));
   }
 };

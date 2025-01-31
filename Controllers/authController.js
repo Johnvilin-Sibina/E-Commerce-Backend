@@ -25,14 +25,20 @@ export const registerUser = async (req, res, next) => {
   }
   const hashedPassword = bcryptjs.hashSync(password, 10);
 
-  const newUser = new User({ username, email, password: hashedPassword, address:address, phoneNumber:phoneNumber });
+  const newUser = new User({
+    username,
+    email,
+    password: hashedPassword,
+    address: address,
+    phoneNumber: phoneNumber,
+  });
   try {
     await newUser.save();
     res
       .status(200)
       .json({ message: "User Registered Successfully", result: newUser });
   } catch (error) {
-    next(error);
+    return next(errorHandler(error));
   }
 };
 
@@ -56,7 +62,7 @@ export const loginUser = async (req, res, next) => {
       .status(200)
       .json({ message: "User Logged In Successfully", rest, token });
   } catch (error) {
-    next(error);
+    return next(errorHandler(error));
   }
 };
 
@@ -99,18 +105,18 @@ export const google = async (req, res, next) => {
         .json({ message: "User Logged In Successfully", rest, token });
     }
   } catch (error) {
-    next(error);
+    return next(errorHandler(error));
   }
 };
 
 //Function to send email to reset password
-export const forgotPassword = async (req, res, next ) => {
+export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
-      return next(errorHandler(401,"User not found"));
-    }    
+      return next(errorHandler(401, "User not found"));
+    }
     const userId = user._id;
     const token = jwt.sign({ _id: userId }, process.env.JWT_SECRET_KEY, {
       expiresIn: "1d",
@@ -118,27 +124,27 @@ export const forgotPassword = async (req, res, next ) => {
     await sendLink(email, token, userId);
     res.status(200).json({ message: "Mail Sent Successfully" });
   } catch (error) {
-    next(error)
+    return next(errorHandler(error));
   }
 };
 
 //Function to reset password
-export const resetPassword = async (req, res, next ) => {
+export const resetPassword = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { newPassword, confirmPassword } = req.body;
     if (newPassword !== confirmPassword) {
-      return(next(errorHandler(401,"Password does not match")))
+      return next(errorHandler(401, "Password does not match"));
     }
     const user = await User.findById(id);
     if (!user) {
-      return (next(errorHandler(401,"User not found")))
+      return next(errorHandler(401, "User not found"));
     }
     const hashPassword = await bcryptjs.hashSync(newPassword, 10);
     user.password = hashPassword;
     await user.save();
     res.status(200).json({ message: "Password Reset Successfully" });
   } catch (error) {
-    next(error)
+    return next(errorHandler(error));
   }
 };
