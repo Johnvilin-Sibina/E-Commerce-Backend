@@ -14,7 +14,7 @@ export const sendLink = async (email, token, userId) => {
       pass: process.env.PASSKEY,
     },
   });
-
+  async function main(req, res) {
   try {
     const info = await transporter.sendMail({
       from: process.env.PASSMAIL,
@@ -28,4 +28,6 @@ export const sendLink = async (email, token, userId) => {
     console.log(error.message);
     console.log("Internal Server Error Unable to Sent Mail");
   }
+}
+main()
 };
