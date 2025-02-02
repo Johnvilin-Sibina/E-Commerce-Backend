@@ -3,7 +3,7 @@ import { errorHandler } from "../Utils/Error.js";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import { sendLink } from "../Services/NodeMailer.js";
+import { sendLink } from "../Services/Nodemailer.js";
 
 dotenv.config();
 
