@@ -328,9 +328,10 @@ export const stripeWebhook = async (req, res, next) => {
         await Cart.findOneAndDelete({ userId });
       } catch (error) {
         next(errorHandler(500, "Error deleting cart items"));
-
-        res.status(200).json({ message: "Order placed successfully" });
       }
+
+      res.status(200).json({ message: "Order placed successfully" });
+      
     } catch (error) {
       return next(errorHandler(500, "Error procescsing the order"));
     }
