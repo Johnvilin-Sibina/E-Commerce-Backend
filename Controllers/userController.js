@@ -264,8 +264,8 @@ export const checkoutSession = async (req, res, next) => {
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
-      success_url: "http://localhost:5173/paymentsuccess",
-      cancel_url: "http://localhost:5173/paymentfailure",
+      success_url: "https://loot-mart.netlify.app//paymentsuccess",
+      cancel_url: "https://loot-mart.netlify.app//paymentfailure",
       client_reference_id: user._id,
       expand: ["line_items"],
     });
