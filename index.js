@@ -22,7 +22,7 @@ app.use(
 
 // Apply JSON middleware for all other routes
 app.use((req, res, next) => {
-  if (req.originalUrl === "/api/user/stripe/webhook") {
+  if (req.originalUrl === "/api/stripe/webhook") {
     next(); // Skip global middleware for Stripe webhook
   } else {
     express.json()(req, res, next);
@@ -37,7 +37,7 @@ app.get("/", (req, res) => {
 
 // Handle raw body for Stripe webhook
 app.post(
-  "/api/user/stripe/webhook",
+  "/api/stripe/webhook",
   express.raw({ type: "application/json" }), 
   stripeWebhook 
 );
