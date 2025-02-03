@@ -286,7 +286,7 @@ export const stripeWebhook = async (req, res, next) => {
   try {
     const payload = req.body; 
     event = stripe.webhooks.constructEvent(payload, signature, endpointSecret);
-    console.log("Webhook event constructed successfully",req.body)
+    console.log("Webhook event constructed successfully")
   } catch (error) {
     console.error("Error constructing event:", error.message)
     return next(errorHandler(400, error.message));

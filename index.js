@@ -7,33 +7,16 @@ import userRoute from "./Routers/userRouter.js";
 import adminRoute from "./Routers/adminRouter.js";
 import { stripeWebhook } from "./Controllers/userController.js";
 
-
 dotenv.config();
 
 const app = express();
 
 app.use(
   cors({
-    origin: "*",
+    origin: "https://loot-mart.netlify.app",
     credentials: true,
   })
 );
-
-
-// Apply JSON middleware for all other routes
-app.use((req, res, next) => {
-  if (req.originalUrl === "/api/stripe/webhook") {
-    next(); // Skip global middleware for Stripe webhook
-  } else {
-    express.json()(req, res, next);
-  }
-});
-
-connectDB();
-
-app.get("/", (req, res) => {
-  res.send("Welcome to the API");
-});
 
 // Handle raw body for Stripe webhook
 app.post(
@@ -41,6 +24,18 @@ app.post(
   express.raw({ type: "application/json" }), 
   stripeWebhook 
 );
+
+
+// Apply JSON middleware for all other routes
+app.use(express.json());
+
+connectDB();
+
+app.get("/", (req, res) => {
+  res.send("Welcome to LootMart API endpoints.");
+});
+
+
 
 //API routes
 app.use("/api/auth", authRoute);
