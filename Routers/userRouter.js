@@ -25,11 +25,6 @@ router.get("/cart-details/:id", verifyToken, getCartDetails);
 router.post("/update-cart-quantity/:id", verifyToken, updateCartQuantity);
 router.post("/remove-from-cart/:id", verifyToken, removeFromCart);
 router.post("/create-checkout-session", verifyToken, checkoutSession);
-router.post(
-  "/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  stripeWebhook
-);
 router.get("/get-orders/:id", verifyToken, getOrderDetails);
 
 export default router;

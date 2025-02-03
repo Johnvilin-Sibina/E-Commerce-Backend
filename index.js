@@ -5,6 +5,8 @@ import connectDB from "./Database/config.js";
 import authRoute from "./Routers/authRouter.js";
 import userRoute from "./Routers/userRouter.js";
 import adminRoute from "./Routers/adminRouter.js";
+import { stripeWebhook } from "./Controllers/userController.js";
+
 
 dotenv.config();
 
@@ -17,14 +19,6 @@ app.use(
   })
 );
 
-// Handle raw body for Stripe webhook
-app.post(
-  "/api/user/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  (req, res, next) => {
-    userRoute(req, res, next); // Pass control to userRouter
-  }
-);
 
 // Apply JSON middleware for all other routes
 app.use((req, res, next) => {
@@ -40,6 +34,13 @@ connectDB();
 app.get("/", (req, res) => {
   res.send("Welcome to the API");
 });
+
+// Handle raw body for Stripe webhook
+app.post(
+  "/api/user/stripe/webhook",
+  express.raw({ type: "application/json" }), 
+  stripeWebhook 
+);
 
 //API routes
 app.use("/api/auth", authRoute);
