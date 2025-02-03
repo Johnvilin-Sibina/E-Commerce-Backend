@@ -285,17 +285,21 @@ export const stripeWebhook = async (req, res, next) => {
 
   try {
     event = stripe.webhooks.constructEvent(req.body, signature, endpointSecret);
+    console.log("Webhook event constructed successfully")
   } catch (error) {
+    console.error("Error constructing event:", error.message)
     return next(errorHandler(400, error.message));
   }
 
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
+    const session = event.data.object;    
+    console.log("Checkout session completed:", session.id)
 
     try {
       const lineItems = await stripe.checkout.sessions.listLineItems(
         session.id
       );
+      console.log("Line items retrieved:", lineItems.data)
 
       const enrichedProducts = await Promise.all(
         lineItems.data.map(async (item) => {
@@ -310,6 +314,7 @@ export const stripeWebhook = async (req, res, next) => {
 
       const userId = session.client_reference_id;
       const customer = await User.findById(userId);
+      console.log("Customer found:", customer);
 
       if (!customer) {
         return next(errorHandler(404, "User not found"));
@@ -324,15 +329,18 @@ export const stripeWebhook = async (req, res, next) => {
       });
 
       await orderDetails.save();
+      console.log("Order saved:", orderDetails);
       try {
         await Cart.findOneAndDelete({ userId });
+        console.log("Cart items deleted for user:", userId);
       } catch (error) {
         next(errorHandler(500, "Error deleting cart items"));
       }
 
       res.status(200).json({ message: "Order placed successfully" });
-      
+
     } catch (error) {
+      console.error("Error processing the order:", error.message);
       return next(errorHandler(500, "Error procescsing the order"));
     }
   }
