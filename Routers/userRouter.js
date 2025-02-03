@@ -9,7 +9,6 @@ import {
   getProducts,
   getUserById,
   removeFromCart,
-  stripeWebhook,
   updateCartQuantity,
   updateUser,
 } from "../Controllers/userController.js";

@@ -284,8 +284,10 @@ export const stripeWebhook = async (req, res, next) => {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, signature, endpointSecret);
-    console.log("Webhook event constructed successfully")
+    const payload = req.body; // ✅ Ensure raw buffer is used
+    const payloadString = payload.toString(); // ✅ Convert buffer to string
+    event = stripe.webhooks.constructEvent(payloadString, signature, endpointSecret);
+    console.log("Webhook event constructed successfully",req.body)
   } catch (error) {
     console.error("Error constructing event:", error.message)
     return next(errorHandler(400, error.message));
