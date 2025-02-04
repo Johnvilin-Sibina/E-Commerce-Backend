@@ -13,6 +13,6 @@ router.post("/register-user", registerUser);
 router.post("/login-user", loginUser);
 router.post("/google", google);
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:id/:token", resetPassword);
+router.put("/reset-password/:id/:token", resetPassword);
 
 export default router;
